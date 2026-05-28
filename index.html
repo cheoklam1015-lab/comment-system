@@ -64,6 +64,9 @@
     </main>
 
     <script>
+        // --- 部署後請將下方網址取代為你的 Apps Script 部署 URL ---
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbSDZdmWXa8csatV9TgancJTANLAjFWktWg4f8JkIbExgSWAtu9s_WtIwpl863Rq8QaA/exec";
+
         // --- State Management ---
         let currentStatusFilter = 'all';
         const STORAGE_KEY = "records";
@@ -74,6 +77,22 @@
             life: { label: '生活', color: 'text-pink-600', bg: 'bg-pink-100/50' },
             other: { label: '其他', color: 'text-purple-600', bg: 'bg-purple-100/50' },
         };
+
+        // --- 同步到 Google Sheet 的輔助函式 ---
+        function syncToSheet(payload) {
+            if (APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbwbSDZdmWXa8csatV9TgancJTANLAjFWktWg4f8JkIbExgSWAtu9s_WtIwpl863Rq8QaA/exec") {
+                console.warn('尚未設定 APPS_SCRIPT_URL，略過同步');
+                return;
+            }
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => console.log('同步成功:', data))
+            .catch(err => console.warn('同步失敗:', err));
+        }
 
         // --- Core Functions (Required) ---
 
@@ -178,6 +197,9 @@
 
             saveData(newRecord);
             
+            // 同步新增至 Google Sheet
+            syncToSheet({ action: 'create', record: newRecord });
+
             // Reset input
             document.getElementById('questionInput').value = '';
         }
@@ -192,6 +214,16 @@
             });
             localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
             renderList();
+
+            // 取得已切換狀態後的該筆 record，並同步更新
+            const updatedRecord = updated.find(r => r.id === id);
+            if (updatedRecord) {
+                syncToSheet({
+                    action: 'update',
+                    id: updatedRecord.id,
+                    changes: { status: updatedRecord.status }
+                });
+            }
         }
 
         function setStatusFilter(filter) {
