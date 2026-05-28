@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>匿名問答箱 - Vanilla 版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .line-through-custom { text-decoration: line-through; color: #94a3b8; }
+        .done-card { opacity: 0.6; filter: grayscale(0.5); }
+    </style>
+</head>
+<body class="bg-[#fdfbfb] min-h-screen text-slate-800 pb-20">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-pink-100/50 px-4 py-4">
+        <div class="max-w-2xl mx-auto space-y-4">
+            <div class="flex items-center justify-between">
+                <h1 class="text-2xl font-bold tracking-tight flex items-center gap-2 text-pink-500">
+                    <div class="bg-gradient-to-br from-pink-300 to-purple-300 text-white p-2 rounded-2xl shadow-sm">
+                        <i data-lucide="message-square-plus"></i>
+                    </div>
+                    匿名問答箱
+                </h1>
+                
+                <div class="flex flex-col items-end gap-1">
+                    <div class="flex bg-slate-100/80 p-1 rounded-2xl gap-1" id="statusFilters">
+                        <button onclick="setStatusFilter('all')" id="filter-all" class="px-3 py-1.5 text-xs font-bold rounded-xl transition-all bg-white text-pink-500 shadow-sm">全部</button>
+                        <button onclick="setStatusFilter('active')" id="filter-active" class="px-3 py-1.5 text-xs font-bold rounded-xl transition-all text-slate-400 hover:text-slate-600">只看 active</button>
+                        <button onclick="setStatusFilter('done')" id="filter-done" class="px-3 py-1.5 text-xs font-bold rounded-xl transition-all text-slate-400 hover:text-slate-600">只看 done</button>
+                    </div>
+                    <div class="flex gap-3 px-2 text-[10px] font-bold text-slate-400" id="statsSummary">
+                        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-pink-400"></span>active: 0</span>
+                        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>done: 0</span>
+                        <span class="flex items-center gap-1 text-slate-500">total: 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="bg-white rounded-[2rem] p-4 shadow-sm border border-pink-50">
+                <textarea id="questionInput" placeholder="寫下你的匿名問題..." class="w-full min-h-[80px] p-3 text-slate-600 bg-slate-50/50 border-none focus:ring-2 focus:ring-pink-300 rounded-2xl resize-none outline-none text-sm"></textarea>
+                <div class="flex justify-between items-center mt-3">
+                    <select id="categoryInput" class="text-xs font-bold bg-slate-100 border-none rounded-full px-4 py-2 outline-none text-slate-500">
+                        <option value="school">🏫 學校</option>
+                        <option value="homework">📚 功課</option>
+                        <option value="life">☕ 生活</option>
+                        <option value="other">💬 其他</option>
+                    </select>
+                    <button onclick="handleAddRecord()" class="bg-pink-400 hover:bg-pink-500 text-white px-6 py-2 rounded-full font-bold text-sm transition-all shadow-lg shadow-pink-100">
+                        發佈問題
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main List -->
+    <main class="max-w-2xl mx-auto px-4 py-6" id="recordsList">
+        <!-- List items will be injected here -->
+    </main>
+
+    <script>
+        // --- State Management ---
+        let currentStatusFilter = 'all';
+        const STORAGE_KEY = "records";
+
+        const CATEGORY_MAP = {
+            school: { label: '學校', color: 'text-blue-600', bg: 'bg-blue-100/50' },
+            homework: { label: '功課', color: 'text-green-600', bg: 'bg-green-100/50' },
+            life: { label: '生活', color: 'text-pink-600', bg: 'bg-pink-100/50' },
+            other: { label: '其他', color: 'text-purple-600', bg: 'bg-purple-100/50' },
+        };
+
+        // --- Core Functions (Required) ---
+
+        function loadData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        }
+
+        function saveData(newRecord) {
+            const records = loadData();
+            records.unshift(newRecord); // Add to beginning
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            renderList();
+        }
+
+        function renderList() {
+            const records = loadData();
+            const listContainer = document.getElementById('recordsList');
+            const statsContainer = document.getElementById('statsSummary');
+            
+            // Update Stats
+            const activeCount = records.filter(r => r.status === 'active').length;
+            const doneCount = records.filter(r => r.status === 'done').length;
+            statsContainer.innerHTML = `
+                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-pink-400"></span>active: ${activeCount}</span>
+                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>done: ${doneCount}</span>
+                <span class="flex items-center gap-1 text-slate-500">total: ${records.length}</span>
+            `;
+
+            // Apply Filter and Sort
+            let filteredRecords = records;
+            if (currentStatusFilter !== 'all') {
+                filteredRecords = records.filter(r => r.status === currentStatusFilter);
+            }
+
+            // Sort: active first
+            filteredRecords.sort((a, b) => {
+                if (a.status === b.status) return 0;
+                return a.status === 'active' ? -1 : 1;
+            });
+
+            // Build HTML
+            if (filteredRecords.length === 0) {
+                listContainer.innerHTML = `<div class="text-center py-20 text-slate-300">暫時沒有相關問題</div>`;
+                return;
+            }
+
+            listContainer.innerHTML = filteredRecords.map(record => {
+                const cat = CATEGORY_MAP[record.category] || CATEGORY_MAP.other;
+                const timeStr = new Date(record.createdAt).toLocaleString('zh-TW', { hour12: false });
+                
+                return `
+                    <div class="mb-6 bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden transition-all ${record.status === 'done' ? 'done-card' : ''}">
+                        <div class="p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex items-center gap-2">
+                                    <span class="${cat.bg} ${cat.color} px-3 py-1 rounded-full text-[10px] font-bold">
+                                        ${cat.label}
+                                    </span>
+                                    ${record.status === 'done' ? '<span class="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[10px] font-bold">已讀</span>' : ''}
+                                </div>
+                                <span class="text-[10px] text-slate-300 font-medium uppercase underline decoration-pink-100">${timeStr}</span>
+                            </div>
+                            <p class="text-slate-600 text-lg leading-relaxed font-medium mb-6 ${record.status === 'done' ? 'line-through-custom' : ''}">
+                                ${record.content}
+                            </p>
+                            <div class="flex justify-between items-center pt-4 border-t border-slate-50">
+                                <div class="flex gap-4 items-center">
+                                    <span class="text-xs text-slate-400"># ${record.id.split('_')[1]}</span>
+                                </div>
+                                <button onclick="toggleStatus('${record.id}')" class="flex items-center gap-1.5 text-xs transition-all px-4 py-2 rounded-full ${record.status === 'done' ? 'bg-slate-100 text-slate-500' : 'bg-pink-50 text-pink-500 font-bold'}">
+                                    <i data-lucide="${record.status === 'done' ? 'check-circle-2' : 'circle'}" class="w-4 h-4"></i>
+                                    <span>${record.status === 'done' ? '已標記' : '標為已讀'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // --- Interaction Handlers ---
+
+        function handleAddRecord() {
+            const content = document.getElementById('questionInput').value.trim();
+            const category = document.getElementById('categoryInput').value;
+
+            if (!content) {
+                alert('請輸入問題內容');
+                return;
+            }
+
+            const newRecord = {
+                id: Date.now() + "_" + Math.random().toString(36).slice(2,6),
+                createdAt: new Date().toISOString(),
+                content: content,
+                category: category,
+                status: "active"
+            };
+
+            saveData(newRecord);
+            
+            // Reset input
+            document.getElementById('questionInput').value = '';
+        }
+
+        function toggleStatus(id) {
+            const records = loadData();
+            const updated = records.map(r => {
+                if (r.id === id) {
+                    return { ...r, status: r.status === 'active' ? 'done' : 'active' };
+                }
+                return r;
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            renderList();
+        }
+
+        function setStatusFilter(filter) {
+            currentStatusFilter = filter;
+            
+            // Update filter UI
+            document.querySelectorAll('#statusFilters button').forEach(btn => {
+                btn.className = "px-3 py-1.5 text-xs font-bold rounded-xl transition-all text-slate-400 hover:text-slate-600";
+            });
+            const activeBtn = document.getElementById(`filter-${filter}`);
+            activeBtn.className = "px-3 py-1.5 text-xs font-bold rounded-xl transition-all bg-white text-pink-500 shadow-sm";
+            
+            renderList();
+        }
+
+        // --- Initialization ---
+        window.onload = () => {
+            renderList();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
