@@ -65,7 +65,7 @@
 
     <script>
         // --- 部署後請將下方網址取代為你的 Apps Script 部署 URL ---
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbSDZdmWXa8csatV9TgancJTANLAjFWktWg4f8JkIbExgSWAtu9s_WtIwpl863Rq8QaA/exec";
+        const APPS_SCRIPT_URL = https://script.google.com/macros/s/AKfycbw8wn0w-TmMwFXnmj0HBBrtHuA8i_UP5EcTsMPA4wje0tDzEtVuOnwwOAkpK_pgJMFHIg/exec";
 
         // --- State Management ---
         let currentStatusFilter = 'all';
@@ -80,7 +80,7 @@
 
         // --- 同步到 Google Sheet 的輔助函式 ---
         function syncToSheet(payload) {
-            if (APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbwbSDZdmWXa8csatV9TgancJTANLAjFWktWg4f8JkIbExgSWAtu9s_WtIwpl863Rq8QaA/exec") {
+            if (APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbw8wn0w-TmMwFXnmj0HBBrtHuA8i_UP5EcTsMPA4wje0tDzEtVuOnwwOAkpK_pgJMFHIg/exec") {
                 console.warn('尚未設定 APPS_SCRIPT_URL，略過同步');
                 return;
             }
